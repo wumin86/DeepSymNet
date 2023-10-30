@@ -49,7 +49,7 @@ def GetMCDisturb(variNum, symNo, symFlag, sinCosLogFlag, validFlag, paramNum):
             if tmp1 >= randNum:
                 break
         index1 = int(i)
-        if 1 == paramNum and ((index1-variNum)%8) == 0: #一个操作数不能为常数
+        if 1 == paramNum and indexNum-1 == index1: #一个操作数不能为常数
             continue
         if symNo != 4 and symNo != 5 and symNo != 6 and symNo != 7:
             flagOut = sinCosLogFlag[index1]
@@ -79,7 +79,7 @@ def GetMCDisturb(variNum, symNo, symFlag, sinCosLogFlag, validFlag, paramNum):
                 if tmp1 >= randNum:
                     break
             index2 = int(i)
-            if index1 == index2 and ((index1-variNum)%8) == 0: #两个操作数不能都为常数
+            if index1 == index2 and indexNum-1 == index1:  #两个操作数不能都为常数
                 continue
             #如果是减号或者除号且两次选择节点一样，则不选
             if (symNo == 1 or symNo == 3) and index1 == index2:
@@ -461,7 +461,7 @@ def GetInputSeq(num, variNum, constNum):
     #下面进行排序
     for i in range(variNum):
         t = variNum - i - 1
-        tmp = inputData[inputData[:, t].sort()[1]]
+        tmp = inputData[inputData[:, t].sort(stable=True)[1]]
         inputData = tmp
     return inputData
 
@@ -566,7 +566,7 @@ def MergeEqualLabel(variNum, outShareSeqDatas, labelSeq1s, labelSeq2s, indexLaye
     # 排序
     for i in range(outShareSeqLen):
         t = outShareSeqLen - i
-        outValues = outValues[outValues[:, t].sort()[1]]
+        outValues = outValues[outValues[:, t].sort(stable=True)[1]]
     count = 0
     startId = 0
     labelNum = 0
@@ -1076,15 +1076,15 @@ def func(p, x, codeStr):
     return outPut
 
 def GetTestData(inputSeqLen, variNum, codeStr):
-    data_x = torch.rand(inputSeqLen, variNum) * 4.0 - 2  #和训练集一样
+    data_x = torch.rand(inputSeqLen, variNum) * 4.0 - 2  #The same to train data set
 
     # 下面进行排序
     for i in range(variNum):
         t = variNum - i - 1
-        tmp = data_x[data_x[:, t].sort()[1]]
+        tmp = data_x[data_x[:, t].sort(stable=True)[1]]
         data_x = tmp
 
-    data_y = func((0, 0, 0, 0, 0, 0, 0, 0, 0, 0), data_x, codeStr)  # 因为这里的codeStr没有const所以常数列表不影响结果
+    data_y = func((0, 0, 0, 0, 0, 0, 0, 0, 0, 0), data_x, codeStr)  # Because the codeStr here does not have const, the constant list of all zeros does not affect the results
 
     data_y = data_y.unsqueeze(1)
     testData = torch.cat([data_x, data_y], 1)
@@ -1234,7 +1234,7 @@ def CreatePublicTestData():
             AIFeymanList3 = AIFeymanList + AIFeymanList3
             AIFeymanList = AIFeymanList3
 
-        listAllComplexityList = GetAllRealExpressComplexity(KozaList, KornsList, KeijzerList, VladList, ODEList, AIFeymanList)  # 运行一次即可
+        listAllComplexityList = GetAllRealExpressComplexity(KozaList, KornsList, KeijzerList, VladList, ODEList, AIFeymanList)  # Run once
 
         allKozaTestData = GetALlTestData(inputSeqLen, variNum, KozaList)
         torch.save(allKozaTestData, 'data/public_dataSet/Koza3.t')
@@ -1253,7 +1253,7 @@ if __name__ == '__main__':
     with torch.no_grad():
         trainSampleNum = 180000
         sampleNumTh = 100000
-        maxNumPerClass = 20
+        maxNumPerClass = 20 # Number of samples generated per class
         paramNumList = [2, 2, 2, 2, 1, 1, 1, 1]  # , 1]
         symNum = len(paramNumList)
         paramNums = torch.tensor(paramNumList, dtype=torch.long)
@@ -1264,8 +1264,8 @@ if __name__ == '__main__':
         maxLabelLen2 = 24  # 12, 16, 20
         if 0 < HiddenNum:
             maxLabelLen2 = 12 + (HiddenNum - 3) * 4
-        maxLabelLen = symNetHiddenNum + maxLabelLen2 + 2  # 加2是因为有一个间隔符0和终止符 padToken
-        inputSeqLen = 20  # 输入序列长度
+        maxLabelLen = symNetHiddenNum + maxLabelLen2 + 2  # Adding 2 is because there is a separator character 0 and a terminator character padToken
+        inputSeqLen = 20  # Input sequence length
 
         CreatAllTrainDataNew(trainSampleNum, sampleNumTh, maxNumPerClass, maxLabelLen2, paramNumList, inputSeqLen, variNum, constNum, symNetHiddenNum)
 

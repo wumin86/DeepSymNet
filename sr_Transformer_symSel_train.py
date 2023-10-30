@@ -11,13 +11,13 @@ from functools import cmp_to_key
 from transformerModel import TransformerModel
 from sr_Transformer_generateData import LoadData, LoadIsTestInTrain, outPutSymRlt
 padToken = 256
-HiddenNum = -1 #-1混合训练, 大于0固定当前隐层数训练
+HiddenNum = -1 #-1 mixed training, greater than 0 indicates fixed current hidden layer training
 class MyDataset(data.Dataset):
     def __init__(self, images, labels):
         self.images = images
         self.labels = labels
 
-    def __getitem__(self, index):#返回的是tensor
+    def __getitem__(self, index):#return tensor
         d = torch.cat([torch.tensor(0).unsqueeze(0),self.labels[index]], 0)
         img, target = self.images[index], d
         return img, target
@@ -172,7 +172,7 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
     pred = [0]
     predList.append(pred)
     probList = [1]
-    for j in range(max_len1+1):#这里循环次数应该加1
+    for j in range(max_len1+1):
         predListNew = []
         probListNew = []
         currTotalCandNum = len(predList)
@@ -187,10 +187,10 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
             output = model(src, inp)
             outDim = output.size(2)
             outLen = output.size(0)
-            # 不做归一化，因为做归一化效果反而不好
+
             norm_data = output[outLen - 1, 0, :] / 10.0
 
-            if not (predList[k][lenth - 1] in symTable): #防止提前结束
+            if not (predList[k][lenth - 1] in symTable): #Prevent early termination
                 norm_data[0] = -100
             norm_data[256: outDim] = -100
             norm_data = norm_data.unsqueeze(1)
@@ -201,7 +201,7 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
             outValues = torch.cat([indexTmp, norm_data], 1)
             outValues = outValues[outValues[:, 2].sort(descending=True)[1]]
 
-            numOk = 0  # 有效节点个数
+            numOk = 0  # Number of valid nodes
             for i in range(outDim):
                 if 0 >= outValues[i, 2]:
                     break
@@ -223,9 +223,9 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
         currFinishCandNum = len(finishList)
         num = min(num, maxCandNum - currFinishCandNum)
         for t in range(num):
-            orgCandNo = int(outValueAll[t, 0])  # 原来所在的候选列表
-            n = int(outValueAll[t, 1])  # 下一个元素
-            newPred = predList[orgCandNo][:] #wumin 注意这里要用切片赋值
+            orgCandNo = int(outValueAll[t, 0])  # Original candidate list
+            n = int(outValueAll[t, 1])  # Next Element
+            newPred = predList[orgCandNo][:]
             newPred.append(n)
             predListNew.append(newPred)
             probListNew.append(outValueAll[t, 2])
@@ -236,13 +236,13 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
 
         predList = predListNew
         probList = probListNew
-    # 检查没有遇到分隔符的情况,下面的处理方式还比较简单，以后遇到没有分隔符的要对列表进行修改，使得必须包含间隔符，而不是简单丢弃
+    # Discard if no delimiter is encountered
     predListNew = []
     probListNew = []
     for k in range(len(predList)):
         lenth = len(predList[k])
         if 0 != predList[k][lenth-1]:
-            continue  #最后如果不是0的直接丢弃, 因为上面循环加1了
+            continue
             if (predList[k][lenth-1] in symTable):
                 predList[k].append(0)
                 predListNew.append(predList[k])
@@ -257,7 +257,7 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
 
 def train_model(model, trainloader, valLoader, device):
     with torch.autograd.set_detect_anomaly(True):
-        optimizer = optim.Adam(model.parameters(), lr=0.0001) #运算符选择学习率先0.0001再0.00001效果好
+        optimizer = optim.Adam(model.parameters(), lr=0.0001)
         #optimizer = optim.Adam(model.parameters(), lr=0.0002, weight_decay=0.001)#加上L2正则化
         #scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
         criterion = nn.CrossEntropyLoss()
@@ -283,7 +283,7 @@ def GetLabelLen(labelData):
         histLen[n] = histLen[n] + 1
     return histLen
 
-#3 < HiddenNum才调用
+#call when 3 < HiddenNum
 def ReGetLabel1_old(label1):
     label1[:, HiddenNum + 1:symNetHiddenNum] = padToken
     if symNetHiddenNum == HiddenNum:  # 还要考虑加0!
@@ -291,7 +291,7 @@ def ReGetLabel1_old(label1):
         label1 = torch.cat([label1, tmpLabel1], 1)
     return  label1
 
-#混合训练用
+#call when mix training
 def ReGetLabel1(label1):
     num = label1.size(0)
     lenth = label1.size(1)
@@ -315,7 +315,7 @@ def LoadModel(model, modelName):
 
 if __name__ == '__main__':
     with torch.no_grad():
-        #torch.manual_seed(123)  # 初始化种子后每次运行的结果都一样
+        #torch.manual_seed(123)  #
         trainSampleNum = 500
         paramNumList = [2, 2, 2, 2, 1, 1, 1, 1]  # , 1]
         symNum = len(paramNumList)
@@ -324,11 +324,11 @@ if __name__ == '__main__':
         constNum = 1
         variConstNum = variNum + constNum
         symNetHiddenNum = 6
-        inputSeqLen = 20 #输入序列长度
+        inputSeqLen = 20 #Input sequence length
         batch_size = 128
-        #不需要调用CreatAllDataNew2生成数据，直接加载数据就行
+        #No need to call CreatAllDataNew2 to generate data, just load the data directly
         inputTrain, labelTrain1, labelTrain2, constValueTrain = LoadData("train")
-        maxValue = inputTrain[:,:,2].max() #检查数据是否有非法的
+        maxValue = inputTrain[:,:,2].max() #check data
         trainNum = labelTrain1.size(0)
         print("train sample num:", trainNum)
         histLenTrain = GetLabelLen(labelTrain1)
@@ -357,7 +357,7 @@ if __name__ == '__main__':
         inputTest, labelTest1, labelTest2, constValueTest = LoadData("test6")
         #IsTestInTrain = LoadIsTestInTrain()
         IsTestInTrain = LoadIsTestInTrain("IsTestInTrain6")
-        totalNumInTrain = IsTestInTrain.sum() # 测试数据在训练集中的个数
+        totalNumInTrain = IsTestInTrain.sum() # Number of test data in the training set
 
         testNum = labelTest1.size(0)
         print("test sample num:", testNum)
@@ -367,16 +367,16 @@ if __name__ == '__main__':
             labelTest1[:, HiddenNum + 1:symNetHiddenNum] = padToken
         else:
             labelTest1 = ReGetLabel1(labelTest1)
-            # test数据不用考虑后面加0!
+            # No need to add 0 after the test data!
             labelTest1 = labelTest1[:, 0:-1]
 
         print("Max value in inputTrain:", float(maxValue))
         print("totalNumInTrain:", int(totalNumInTrain))
 
         maxLen = symNetHiddenNum
-        ntoken = 257 #256
-        d_model = 512#默认512   256
-        nlayers = 6 #默认6       2
+        ntoken = 257 #256+1
+        d_model = 512
+        nlayers = 6
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = TransformerModel(variNum+1, ntoken, d_model, nlayers=nlayers).to(device)
     #LoadModel(model, "model/model_1.16175.pt")

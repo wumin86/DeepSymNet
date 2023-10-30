@@ -20,13 +20,13 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 padToken = 256
-HiddenNum = -1 #-1混合训练, 大于0固定当前隐层数训练
+HiddenNum = -1 #-1 mixed training, greater than 0 indicates fixed current hidden layer training
 class MyDataset(data.Dataset):
     def __init__(self, images, labels):
         self.images = images
         self.labels = labels
 
-    def __getitem__(self, index):#返回的是tensor
+    def __getitem__(self, index):#return tensor
         # a = torch.tensor(0).unsqueeze(0)
         # b = self.labels[index]
         # c = self.images[index]
@@ -84,7 +84,7 @@ def validation(model, criterion, valLoader, device):
 #####################################################################################
 def train_model(model, trainloader, valLoader, device):
     with torch.autograd.set_detect_anomaly(True):
-        optimizer = optim.Adam(model.parameters(), lr=0.00001)#全模型学习率一开始就0.00001效果好
+        optimizer = optim.Adam(model.parameters(), lr=0.00001)
         #scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
         criterion = nn.CrossEntropyLoss(ignore_index = padToken)
         best_loss = 100
@@ -101,7 +101,7 @@ def train_model(model, trainloader, valLoader, device):
         return model_name
 
 def GetLabelLen(labelData, symNetHiddenNum):
-    histLen = [0 for i in range(symNetHiddenNum+1)]#wumin这里的7改成参数symNetHiddenNum+1
+    histLen = [0 for i in range(symNetHiddenNum+1)]
     num = labelData.size(0)
     for i in range(num):
         tmp = labelData[i,:].nonzero()
@@ -120,7 +120,7 @@ def MergeLabel(maxLabelLen, label1, label2):
                 label[i, 0:j+1] = label1[i, 0:j+1]
                 break
         len1 = j+1
-        if 0 != label1[i, dim1-1]: #这种情况说明label1没有0, 从而label也没有赋值
+        if 0 != label1[i, dim1-1]: #This situation indicates that label1 does not have 0, and therefore label is not assigned a value
             label[i, 0:dim1] = label1[i, 0:dim1]
             label[i, dim1] = 0
             len1 = dim1 + 1
@@ -142,14 +142,14 @@ if __name__ == '__main__':
         maxLabelLen2 = 24 #12, 16, 20
         if 0 < HiddenNum:
             maxLabelLen2 = 12 + (HiddenNum-3)*4
-        maxLabelLen = symNetHiddenNum + maxLabelLen2 + 2 #加2是因为有一个间隔符0和终止符 padToken
-        inputSeqLen = 20 #输入序列长度
+        maxLabelLen = symNetHiddenNum + maxLabelLen2 + 2 #Adding 2 is because there is a separator character 0 and a terminator character padToken
+        inputSeqLen = 20 #Input sequence length
         batch_size = 12
 
         inputTrain, labelTrain1, labelTrain2, constValueTrain = LoadData("train")
         labelTrain = MergeLabel(maxLabelLen, labelTrain1, labelTrain2)
 
-        maxValue = inputTrain[:,:,2].max() #检查数据是否有非法的
+        maxValue = inputTrain[:,:,2].max() #check data
 
         trainloader = torch.utils.data.DataLoader(MyDataset(inputTrain, labelTrain), batch_size*1, shuffle=True, num_workers=2)
         trainNum = labelTrain1.size(0)
@@ -166,9 +166,9 @@ if __name__ == '__main__':
         print("histLenValid:", histLenValid)
 
 
-        ntoken = 257 #256
-        d_model = 512#默认512   256
-        nlayers = 6 #默认6       2
+        ntoken = 257 #256+1
+        d_model = 512#
+        nlayers = 6 #
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = TransformerModel(variNum+1, ntoken, d_model, nlayers=nlayers).to(device)
     #LoadModel(model, "model/model_0.xxxxx.pt")

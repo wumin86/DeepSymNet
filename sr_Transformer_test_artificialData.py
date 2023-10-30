@@ -20,7 +20,7 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 padToken = 256
-HiddenNum = -1 #-1混合训练, 大于0固定当前隐层数训练
+HiddenNum = -1 #-1 mixed training, greater than 0 indicates fixed current hidden layer training
 
 def GetEqual(symSel, variConstNum, symNetHiddenNum, connectSel):
     paramNumList = [2, 2, 2, 2, 1, 1, 1, 1]
@@ -178,11 +178,10 @@ def fit_func(data_x, data_y, codeStr, TestData, pred):
         else:
             p0 = np.random.rand(10)
 
-        #fit_res = least_squares(error, p0, args=(data_x, data_y, codeStr))#,  # 将残差函数中的除p之外的参数都打包至args中
         fit_res = minimize(objFunc, p0, args=(data_x, data_y, codeStr), method='BFGS', options={'gtol': 1e-6, 'disp': False})
-        # 拟合得到的结果是一个形如字典的 OptimizeResult 对象
+
         rlt = dict(fit_res)
-        #totalError = sum((error(rlt["x"], data_x, data_y, codeStr)**2)) #均方误差
+
         totalError = sum(abs(error(rlt["x"], data_x, data_y, codeStr))) / 20
         if totalError < minError:
             minError = totalError
@@ -214,7 +213,7 @@ def GetConstValue(variConstNum, symNetHiddenNum, TestData, pred):
 
 
     return constList, totalError
-#这个函数只返回一个结果
+#return only one result
 def GetFinalCand(variConstNum, symNetHiddenNum, TestData, constValueTest, allPredList):
     candNum = len(allPredList)
     minTotalError = 9999
@@ -260,7 +259,7 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
     pred = [0]
     predList.append(pred)
     probList = [1]
-    for j in range(max_len1+1):#这里循环次数应该加1
+    for j in range(max_len1+1):
         predListNew = []
         probListNew = []
         currTotalCandNum = len(predList)
@@ -275,10 +274,10 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
             output = model(src, inp)
             outDim = output.size(2)
             outLen = output.size(0)
-            # 不做归一化，因为做归一化效果反而不好
+
             norm_data = output[outLen - 1, 0, :] / 10.0
 
-            if not (predList[k][lenth - 1] in symTable): #防止提前结束
+            if not (predList[k][lenth - 1] in symTable): #Prevent early termination
                 norm_data[0] = -100
             norm_data[256: outDim] = -100
             norm_data = norm_data.unsqueeze(1)
@@ -289,7 +288,7 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
             outValues = torch.cat([indexTmp, norm_data], 1)
             outValues = outValues[outValues[:, 2].sort(descending=True)[1]]
 
-            numOk = 0  # 有效节点个数
+            numOk = 0  # Number of valid nodes
             for i in range(outDim):
                 if 0 >= outValues[i, 2]:
                     break
@@ -311,9 +310,9 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
         currFinishCandNum = len(finishList)
         num = min(num, maxCandNum - currFinishCandNum)
         for t in range(num):
-            orgCandNo = int(outValueAll[t, 0])  # 原来所在的候选列表
-            n = int(outValueAll[t, 1])  # 下一个元素
-            newPred = predList[orgCandNo][:] #wumin 注意这里要用切片赋值
+            orgCandNo = int(outValueAll[t, 0])  # Original candidate list
+            n = int(outValueAll[t, 1])  # Next element
+            newPred = predList[orgCandNo][:]
             newPred.append(n)
             predListNew.append(newPred)
             probListNew.append(outValueAll[t, 2])
@@ -324,13 +323,13 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
 
         predList = predListNew
         probList = probListNew
-    # 检查没有遇到分隔符的情况,下面的处理方式还比较简单，以后遇到没有分隔符的要对列表进行修改，使得必须包含间隔符，而不是简单丢弃
+    # If no delimiter is encountered, discard
     predListNew = []
     probListNew = []
     for k in range(len(predList)):
         lenth = len(predList[k])
         if 0 != predList[k][lenth-1]:
-            continue #最后如果不是0的直接丢弃, 因为上面循环加1了
+            continue
             if (predList[k][lenth-1] in symTable):
                 predList[k].append(0)
                 predListNew.append(predList[k])
@@ -362,12 +361,12 @@ def get_perLayerSymList(predList):
 
 #新的
 def GetOneConnectNode(model, maxCandNum, candNo, prob, pred, src, symNo, opNo, preNode, sinCosLogFlag, validFlag, device):
-    preNodeNum = validFlag.size()[0] #上一层节点个数
-    count = 0 #上一层有效节点个数
+    preNodeNum = validFlag.size()[0] #Number of nodes in the previous layer
+    count = 0 #Number of valid nodes in the previous layer
     for i in range(preNodeNum):
         if validFlag[i] == 1:
             count = count + 1
-    if count == 0.0 or ((symNo == 1 or symNo == 3) and count == 1): #如果减号或除号且只有唯一有效节点，则不选
+    if count == 0.0 or ((symNo == 1 or symNo == 3) and count == 1): #If there is a minus or division sign and only one valid node, do not select
         return -1, None
 
     inp = torch.LongTensor(pred).unsqueeze(1).to(device)
@@ -380,7 +379,7 @@ def GetOneConnectNode(model, maxCandNum, candNo, prob, pred, src, symNo, opNo, p
         if 0 == validFlag[i]:
             output[outLen-1, 0, i] = -100
 
-    numFlag = 0 #记录可用的sincoslog节点数
+    numFlag = 0 #Record the number of available sincoslog nodes
     for i in range(preNodeNum):
         if validFlag[i] == 0:
             continue
@@ -393,7 +392,7 @@ def GetOneConnectNode(model, maxCandNum, candNo, prob, pred, src, symNo, opNo, p
     for i in range(preNodeNum):
         if validFlag[i] == 0:
             continue
-        # 如果是减号或者除号且两次选择节点一样，则不选
+        # If it is a minus or division sign and the nodes are selected twice, do not select
         if (symNo == 1 or symNo == 3) and 1 == opNo and preNode == i:
             output[outLen - 1, 0, i] = -100
             continue
@@ -403,7 +402,7 @@ def GetOneConnectNode(model, maxCandNum, candNo, prob, pred, src, symNo, opNo, p
             continue
         output[outLen-1, 0, i] = -100
 
-    norm_data = output[outLen - 1, 0, 0:preNodeNum] #wumin 只有这一部分有效
+    norm_data = output[outLen - 1, 0, 0:preNodeNum] #Only this part is valid
     norm_data = norm_data.unsqueeze(1)
     indexTmp = torch.zeros(preNodeNum, 2).to(device)
     for t in range(preNodeNum):
@@ -411,7 +410,7 @@ def GetOneConnectNode(model, maxCandNum, candNo, prob, pred, src, symNo, opNo, p
         indexTmp[t, 1] = t
     outValues = torch.cat([indexTmp, norm_data], 1)
     outValues = outValues[outValues[:, 2].sort(descending=True)[1]]
-    num = 0 #有效节点个数
+    num = 0 #Number of valid nodes
     for i in range(preNodeNum):
         if 0 >= outValues[i, 2]:
             break
@@ -420,7 +419,7 @@ def GetOneConnectNode(model, maxCandNum, candNo, prob, pred, src, symNo, opNo, p
         return -1, None
     outValues = outValues[0:num, :]
     outValues[:, 2] = (outValues[:, 2]/10.0) * prob
-    #outValues = outValues[outValues[:, 2].sort(descending=True)[1]] #概率改变了需要重新排序 wumin 不需要啊,乘以的是同一个概率
+    #outValues = outValues[outValues[:, 2].sort(descending=True)[1]]
     num = min(num, maxCandNum)
     outValues = outValues[0:num, :]
     return 1, outValues
@@ -435,28 +434,28 @@ def UpdateLayerSymOpPreNode(layerSymOpList, perLayerSymList, orgCandNo, paramNum
     currSymNum = len(perLayerSymList[orgCandNo][layerNo])
     layerNum = len(perLayerSymList[orgCandNo])
 
-    layerSymOp = copy.deepcopy(layerSymOpList[orgCandNo]) #wumin 注意深拷贝
-    flag = 0 #0 没换层, 1换层了, 2 结束了
-    if currSymNum-1 == symIndex and paramNum-1 == opNo: #此时要换层了
-        if layerNum-1 == layerNo: #此时序列生成完毕
+    layerSymOp = copy.deepcopy(layerSymOpList[orgCandNo])
+    flag = 0 #0 hasn't changed layers, 1 has changed layers, 2 is over
+    if currSymNum-1 == symIndex and paramNum-1 == opNo: #Change layer
+        if layerNum-1 == layerNo: #Sequence generation completed
             flag = 2
-        else: #此时要换层了
+        else: #Change layer
             flag = 1
             layerSymOp[0] = layerSymOp[0] + 1
             layerSymOp[1] = 0
             layerSymOp[2] = 0
             layerSymOp[3] = preNode
-    else: #不用换层
-        if paramNum-1 == opNo:#换新的运算符
+    else: #Do not Change layer
+        if paramNum-1 == opNo:#New operator
             layerSymOp[1] = layerSymOp[1] + 1
             layerSymOp[2] = 0
-        else: #只需要操作数换第二个
+        else:
             layerSymOp[2] = layerSymOp[2] + 1
         layerSymOp[3] = preNode
 
     return flag, layerSymOp
 
-#换行了, 更新 sinCosLogFlagListNew, validFlagListNew
+#Changed layers, updated sinCosLogFlagListNew, validFlagListNew
 def UpdatesinCosLogValidFlag(layerSymOpList, perLayerSymList, predList, orgCandNo, paramNums, sinCosLogFlagList, validFlagList):
     layerNo = layerSymOpList[orgCandNo][0]
     currSymNum = len(perLayerSymList[orgCandNo][layerNo])
@@ -497,18 +496,18 @@ def UpdatesinCosLogValidFlag(layerSymOpList, perLayerSymList, predList, orgCandN
 def test_getConnect(model, variConstNum, paramNums, max_len2, maxCandNum, src, predList, probList, device):
     currTotalCandNum = len(predList)
     perLayerSymList = get_perLayerSymList(predList)
-    sinCosLogFlagList = [torch.zeros(variConstNum) for i in range(currTotalCandNum)] #换层时需要更新
-    validFlagList = [torch.ones(variConstNum) for i in range(currTotalCandNum)] #换层时需要更新
-    layerSymOpList = [] #每次需要更新
+    sinCosLogFlagList = [torch.zeros(variConstNum) for i in range(currTotalCandNum)] #Need to update when changing layers
+    validFlagList = [torch.ones(variConstNum) for i in range(currTotalCandNum)] #Need to update when changing layers
+    layerSymOpList = [] #Every update required
     for i in range(currTotalCandNum):
         layerSymOp = torch.zeros(4, dtype=int)
-        layerSymOp[0] = 0 #层号
-        layerSymOp[1] = 0 #运算符index
-        layerSymOp[2] = 0 #第几个操作数
-        layerSymOp[3] = -1 #存储上个节点编号preNode
+        layerSymOp[0] = 0 #Layer No.
+        layerSymOp[1] = 0 #operator index
+        layerSymOp[2] = 0 #Which operand
+        layerSymOp[3] = -1 #Store the previous node number preNode
         layerSymOpList.append(layerSymOp)
-    # 最大长度应该计算出来!!!
-    for i in range(max_len2):#这里的循环次数不用加1，因为如果预测结束了会额外加上padToken
+
+    for i in range(max_len2):
         predListNew = []
         probListNew = []
         finishList = []
@@ -546,13 +545,13 @@ def test_getConnect(model, variConstNum, paramNums, max_len2, maxCandNum, src, p
         currFinishCandNum = len(finishList)
         num = min(num, maxCandNum - currFinishCandNum)
         for t in range(num):
-            orgCandNo = int(outValueAll[t, 0])  # 原来所在的候选列表
-            n = int(outValueAll[t, 1])  # 下一个元素
+            orgCandNo = int(outValueAll[t, 0])  # Original candidate list
+            n = int(outValueAll[t, 1])  # Next element
             newPred = predList[orgCandNo][:]
             newPred.append(n)
             probListNew.append(outValueAll[t, 2])
             perLayerSymListNew.append(perLayerSymList[orgCandNo])
-            #layerSymOpListNew每次都要更新, 换层的时候根据选择的情况更新sinCosLogFlagListNew, validFlagListNew
+            #LayerSymOpListNew needs to be updated every time, and when changing layers, sinCosLogFlagListNew and validFlagListNew are updated based on the selected situation
             flag, layerSymOp = UpdateLayerSymOpPreNode(layerSymOpList, perLayerSymList, orgCandNo, paramNums, n)
             layerSymOpListNew.append(layerSymOp)
             if 2 == flag:
@@ -795,7 +794,7 @@ def test_BeamSearch_new(modelSym, model, paramNums, max_len1, max_len2, device, 
                     for j in range(max_len - lenth + 1):
                         predList[k].append(padToken) #50
                 pred = torch.tensor(predList[k][1:max_len + 1]).to(device)
-                if (1==errorFlag and minTotalError < 0.00001) or (0==errorFlag and tgt.equal(pred)): #误差打开2
+                if (1==errorFlag and minTotalError < 0.00001) or (0==errorFlag and tgt.equal(pred)): #error open 2
                 #if tgt.equal(pred):
                     if 0 == isInTrain:
                         notInTrainSucNum = notInTrainSucNum + 1
@@ -849,10 +848,10 @@ def MergeLabel(maxLabelLen, label1, label2):
     dim2 = label2.size(1)
     label = torch.ones(num, maxLabelLen, dtype=int)*padToken
     for i in range(num):
-        # 50 用padToken代替, 为了兼容老数据
+        # 50 is replaced with padToken for compatibility with old data
         if 2 == variNum:
             for j in range(dim2):
-                t = dim2 - 1 - j #从后往前找
+                t = dim2 - 1 - j #Looking forward from behind
                 if 50 == label2[i,t]:
                     label2[i, t] = padToken
                 else:
@@ -863,7 +862,7 @@ def MergeLabel(maxLabelLen, label1, label2):
                 label[i, 0:j+1] = label1[i, 0:j+1]
                 break
         len1 = j+1
-        if 0 != label1[i, dim1-1]: #这种情况说明label1没有0, 从而label也没有赋值
+        if 0 != label1[i, dim1-1]: #This situation indicates that label1 does not have 0, and therefore label is not assigned a value
             label[i, 0:dim1] = label1[i, 0:dim1]
             label[i, dim1] = 0
             len1 = dim1 + 1
@@ -1033,12 +1032,12 @@ if __name__ == '__main__':
         maxLabelLen2 = 24 #12, 16, 20
         if 0 < HiddenNum:
             maxLabelLen2 = 12 + (HiddenNum-3)*4
-        maxLabelLen = symNetHiddenNum + maxLabelLen2 + 2 #加2是因为有一个间隔符0和终止符 padToken
+        maxLabelLen = symNetHiddenNum + maxLabelLen2 + 2
 
         inputTest, labelTest1, labelTest2, constValueTest = LoadData("test3")
         labelTest = MergeLabel(maxLabelLen, labelTest1, labelTest2)
         IsTestInTrain = LoadIsTestInTrain("IsTestInTrain3")
-        totalNumInTrain = IsTestInTrain.sum() # 测试数据在训练集中的个数
+        totalNumInTrain = IsTestInTrain.sum() # Number of test data in the training set
 
         testNum = labelTest1.size(0)
         print("test sample num:", testNum)
@@ -1046,12 +1045,11 @@ if __name__ == '__main__':
         print("histLenTest:", histLenTest)
         print("totalNumInTrain:", int(totalNumInTrain))
 
-        ntoken = 257 #256
-        d_model = 512#默认512   256
-        nlayers = 6 #默认6       2
+        ntoken = 257 #256+1
+        d_model = 512
+        nlayers = 6
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    #大合并后的训练模型
     modelSymSel_name = 'model_symSel/model_0.54989.pt'
     model_name = 'model/model_0.24265.pt' #0.24265
 

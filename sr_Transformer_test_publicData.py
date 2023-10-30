@@ -98,7 +98,7 @@ def fit_func(data_x, data_y, codeStr, TestData, pred):
     """
     minError = 9999
     minConstList = []
-    for i in range(2): #求解一次就行了 2
+    for i in range(2): #Solution Times
         p0 = np.random.rand(10)
         #p0 = np.zeros(10)
 
@@ -107,11 +107,9 @@ def fit_func(data_x, data_y, codeStr, TestData, pred):
         # if 0 == flag:
         #     break
 
-        #fit_res = least_squares(error, p0, args=(data_x, data_y, codeStr))#,  # 将残差函数中的除p之外的参数都打包至args中
         fit_res = minimize(objFunc, p0, args=(data_x, data_y, codeStr), method='BFGS', options={'gtol': 1e-6, 'disp': False})
-        # 拟合得到的结果是一个形如字典的 OptimizeResult 对象
+        # The fitted result is an OptimizeResult object shaped like a dictionary
         rlt = dict(fit_res)
-        #totalError = sum((error(rlt["x"], data_x, data_y, codeStr)**2)) #均方误差
         totalError = sum(abs(error(rlt["x"], data_x, data_y, codeStr)))/20
         if totalError < minError:
             minError = totalError
@@ -119,7 +117,6 @@ def fit_func(data_x, data_y, codeStr, TestData, pred):
         if minError < 1.0e-8:
             break
 
-    #print("    求得的系数为:", minConstList, ", totalError:", minError)
     return minConstList, minError
 
 def fit_func_test():
@@ -137,9 +134,9 @@ def fit_func_test():
     p0 = np.random.rand(8)
     #p0 = np.zeros(8)
     fit_res = least_squares(error, p0,
-                                     args=(data_x, data_y, codeStr))#,  # 将残差函数中的除p之外的参数都打包至args中
-                                     #bounds=((0, 0), (1000, np.inf)))  # 定义了两个边界值，0~1000和0~+∞。
-    # 拟合得到的结果是一个形如字典的 OptimizeResult 对象
+                                     args=(data_x, data_y, codeStr))
+                                     #bounds=((0, 0), (1000, np.inf)))
+    # The fitted result is an OptimizeResult object shaped like a dictionary
     rlt = dict(fit_res)
     totalError = sum((error(rlt["x"], data_x, data_y, codeStr) ** 2))
     print("求得的系数为:", rlt["x"], ", totalError:", totalError)
@@ -157,13 +154,13 @@ def BFGS_test():
     data_y = func((-1.0748, -1.9766, 1.9207, -1.6063, 1.9207, -1.6063, 1.9207, -1.6063, -1, 1), data_x, codeStr)
 
     p0 = np.random.rand(10)
-    fit_res_ls = least_squares(error, p0, args=(data_x, data_y, codeStr))#,  # 将残差函数中的除p之外的参数都打包至args中
+    fit_res_ls = least_squares(error, p0, args=(data_x, data_y, codeStr))#,  # Pack all parameters in the residual function except for p into args
     rlt_ls = dict(fit_res_ls)
     totalError = sum((error(rlt_ls["x"], data_x, data_y, codeStr) ** 2))
     print("least_squares 求得的系数为:", rlt_ls["x"], ", totalError:", totalError)
 
     fit_res = minimize(objFunc, p0, args=(data_x, data_y, codeStr), method='BFGS', options={'gtol': 1e-6, 'disp': True})
-    # 拟合得到的结果是一个形如字典的 OptimizeResult 对象
+    # The fitted result is an OptimizeResult object shaped like a dictionary
     rlt = dict(fit_res)
     totalError = sum((error(rlt["x"], data_x, data_y, codeStr) ** 2))
     print("BFGS 求得的系数为:", rlt["x"], ", totalError:", totalError)
@@ -185,7 +182,7 @@ def GetConstValue(variConstNum, symNetHiddenNum, TestData, pred):
         data_y = TestData[:, variConstNum-1].numpy()
         constList, totalError = fit_func(data_x, data_y, codeStr, TestData, pred)
     return constList, totalError
-#这个函数只返回一个结果
+#return only one result
 def GetFinalCand(variConstNum, symNetHiddenNum, TestData, allPredList):
     candNum = len(allPredList)
     minTotalError = 9999
@@ -225,7 +222,7 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
     pred = [0]
     predList.append(pred)
     probList = [1]
-    for j in range(max_len1+1):#这里循环次数应该加1
+    for j in range(max_len1+1):
         predListNew = []
         probListNew = []
         currTotalCandNum = len(predList)
@@ -240,10 +237,10 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
             output = model(src, inp)
             outDim = output.size(2)
             outLen = output.size(0)
-            # 不做归一化，因为做归一化效果反而不好
+
             norm_data = output[outLen - 1, 0, :] / 10.0
 
-            if not (predList[k][lenth - 1] in symTable): #防止提前结束
+            if not (predList[k][lenth - 1] in symTable): #Prevent early termination
                 norm_data[0] = -100
             norm_data[256: outDim] = -100
             norm_data = norm_data.unsqueeze(1)
@@ -254,7 +251,7 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
             outValues = torch.cat([indexTmp, norm_data], 1)
             outValues = outValues[outValues[:, 2].sort(descending=True)[1]]
 
-            numOk = 0  # 有效节点个数
+            numOk = 0  # Number of valid nodes
             for i in range(outDim):
                 if 0 >= outValues[i, 2]:
                     break
@@ -276,9 +273,9 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
         currFinishCandNum = len(finishList)
         num = min(num, maxCandNum - currFinishCandNum)
         for t in range(num):
-            orgCandNo = int(outValueAll[t, 0])  # 原来所在的候选列表
-            n = int(outValueAll[t, 1])  # 下一个元素
-            newPred = predList[orgCandNo][:] #wumin 注意这里要用切片赋值
+            orgCandNo = int(outValueAll[t, 0])  # Original candidate list
+            n = int(outValueAll[t, 1])  # Next element
+            newPred = predList[orgCandNo][:]
             newPred.append(n)
             predListNew.append(newPred)
             probListNew.append(outValueAll[t, 2])
@@ -289,13 +286,13 @@ def test_getSym(model, max_len1, maxCandNum, src, device):
 
         predList = predListNew
         probList = probListNew
-    # 检查没有遇到分隔符的情况,下面的处理方式还比较简单，以后遇到没有分隔符的要对列表进行修改，使得必须包含间隔符，而不是简单丢弃
+    # If no delimiter is encountered, discard
     predListNew = []
     probListNew = []
     for k in range(len(predList)):
         lenth = len(predList[k])
         if 0 != predList[k][lenth-1]:
-            continue #最后如果不是0的直接丢弃, 因为上面循环加1了
+            continue
             if (predList[k][lenth-1] in symTable):
                 predList[k].append(0)
                 predListNew.append(predList[k])
@@ -327,12 +324,12 @@ def get_perLayerSymList(predList):
 
 #新的
 def GetOneConnectNode(model, maxCandNum, candNo, prob, pred, src, symNo, opNo, preNode, sinCosLogFlag, validFlag, device):
-    preNodeNum = validFlag.size()[0] #上一层节点个数
-    count = 0 #上一层有效节点个数
+    preNodeNum = validFlag.size()[0] #Number of nodes in the previous layer
+    count = 0 #Number of valid nodes in the previous layer
     for i in range(preNodeNum):
         if validFlag[i] == 1:
             count = count + 1
-    if count == 0.0 or ((symNo == 1 or symNo == 3) and count == 1): #如果减号或除号且只有唯一有效节点，则不选
+    if count == 0.0 or ((symNo == 1 or symNo == 3) and count == 1): #If there is a minus or division sign and only one valid node, do not select
         return -1, None
 
     inp = torch.LongTensor(pred).unsqueeze(1).to(device)
@@ -345,7 +342,7 @@ def GetOneConnectNode(model, maxCandNum, candNo, prob, pred, src, symNo, opNo, p
         if 0 == validFlag[i]:
             output[outLen-1, 0, i] = -100
 
-    numFlag = 0 #记录可用的sincoslog节点数
+    numFlag = 0 # Record the number of available sincoslog nodes
     for i in range(preNodeNum):
         if validFlag[i] == 0:
             continue
@@ -358,7 +355,7 @@ def GetOneConnectNode(model, maxCandNum, candNo, prob, pred, src, symNo, opNo, p
     for i in range(preNodeNum):
         if validFlag[i] == 0:
             continue
-        # 如果是减号或者除号且两次选择节点一样，则不选
+        # If it is a minus or division sign and the nodes are selected twice, do not select
         if (symNo == 1 or symNo == 3) and 1 == opNo and preNode == i:
             output[outLen - 1, 0, i] = -100
             continue
@@ -368,7 +365,7 @@ def GetOneConnectNode(model, maxCandNum, candNo, prob, pred, src, symNo, opNo, p
             continue
         output[outLen-1, 0, i] = -100
 
-    norm_data = output[outLen - 1, 0, 0:preNodeNum] #wumin 只有这一部分有效
+    norm_data = output[outLen - 1, 0, 0:preNodeNum]
     norm_data = norm_data.unsqueeze(1)
     indexTmp = torch.zeros(preNodeNum, 2).to(device)
     for t in range(preNodeNum):
@@ -376,7 +373,7 @@ def GetOneConnectNode(model, maxCandNum, candNo, prob, pred, src, symNo, opNo, p
         indexTmp[t, 1] = t
     outValues = torch.cat([indexTmp, norm_data], 1)
     outValues = outValues[outValues[:, 2].sort(descending=True)[1]]
-    num = 0 #有效节点个数
+    num = 0 #Number of valid nodes
     for i in range(preNodeNum):
         if 0 >= outValues[i, 2]:
             break
@@ -385,7 +382,7 @@ def GetOneConnectNode(model, maxCandNum, candNo, prob, pred, src, symNo, opNo, p
         return -1, None
     outValues = outValues[0:num, :]
     outValues[:, 2] = (outValues[:, 2]/10.0) * prob
-    #outValues = outValues[outValues[:, 2].sort(descending=True)[1]] #概率改变了需要重新排序 wumin 不需要啊,乘以的是同一个概率
+    #outValues = outValues[outValues[:, 2].sort(descending=True)[1]]
     num = min(num, maxCandNum)
     outValues = outValues[0:num, :]
     return 1, outValues
@@ -400,28 +397,28 @@ def UpdateLayerSymOpPreNode(layerSymOpList, perLayerSymList, orgCandNo, paramNum
     currSymNum = len(perLayerSymList[orgCandNo][layerNo])
     layerNum = len(perLayerSymList[orgCandNo])
 
-    layerSymOp = copy.deepcopy(layerSymOpList[orgCandNo]) #wumin 注意深拷贝
-    flag = 0 #0 没换层, 1换层了, 2 结束了
-    if currSymNum-1 == symIndex and paramNum-1 == opNo: #此时要换层了
-        if layerNum-1 == layerNo: #此时序列生成完毕
+    layerSymOp = copy.deepcopy(layerSymOpList[orgCandNo])
+    flag = 0 #0 hasn't changed layers, 1 has changed layers, 2 is over
+    if currSymNum-1 == symIndex and paramNum-1 == opNo: #it's time to change layers
+        if layerNum-1 == layerNo: #the sequence generation is complete
             flag = 2
-        else: #此时要换层了
+        else: # it's time to change layers
             flag = 1
             layerSymOp[0] = layerSymOp[0] + 1
             layerSymOp[1] = 0
             layerSymOp[2] = 0
             layerSymOp[3] = preNode
-    else: #不用换层
-        if paramNum-1 == opNo:#换新的运算符
+    else: #Do not change layers
+        if paramNum-1 == opNo:#new operator
             layerSymOp[1] = layerSymOp[1] + 1
             layerSymOp[2] = 0
-        else: #只需要操作数换第二个
+        else:
             layerSymOp[2] = layerSymOp[2] + 1
         layerSymOp[3] = preNode
 
     return flag, layerSymOp
 
-#换行了, 更新 sinCosLogFlagListNew, validFlagListNew
+#Changed layers, updated sinCosLogFlagListNew, validFlagListNew
 def UpdatesinCosLogValidFlag(layerSymOpList, perLayerSymList, predList, orgCandNo, paramNums, sinCosLogFlagList, validFlagList):
     layerNo = layerSymOpList[orgCandNo][0]
     currSymNum = len(perLayerSymList[orgCandNo][layerNo])
@@ -462,18 +459,17 @@ def UpdatesinCosLogValidFlag(layerSymOpList, perLayerSymList, predList, orgCandN
 def test_getConnect(model, variConstNum, paramNums, max_len2, maxCandNum, src, predList, probList, device):
     currTotalCandNum = len(predList)
     perLayerSymList = get_perLayerSymList(predList)
-    sinCosLogFlagList = [torch.zeros(variConstNum) for i in range(currTotalCandNum)] #换层时需要更新
-    validFlagList = [torch.ones(variConstNum) for i in range(currTotalCandNum)] #换层时需要更新
-    layerSymOpList = [] #每次需要更新
+    sinCosLogFlagList = [torch.zeros(variConstNum) for i in range(currTotalCandNum)] #Need to update when changing layers
+    validFlagList = [torch.ones(variConstNum) for i in range(currTotalCandNum)] #Need to update when changing layers
+    layerSymOpList = [] #Every update required
     for i in range(currTotalCandNum):
         layerSymOp = torch.zeros(4, dtype=int)
-        layerSymOp[0] = 0 #层号
-        layerSymOp[1] = 0 #运算符index
-        layerSymOp[2] = 0 #第几个操作数
-        layerSymOp[3] = -1 #存储上个节点编号preNode
+        layerSymOp[0] = 0 #Layer No
+        layerSymOp[1] = 0 #operator index
+        layerSymOp[2] = 0 #Which operand
+        layerSymOp[3] = -1 #Store the previous node number preNode
         layerSymOpList.append(layerSymOp)
-    # 最大长度应该计算出来!!!
-    for i in range(max_len2):#这里的循环次数不用加1，因为如果预测结束了会额外加上padToken
+    for i in range(max_len2):
         predListNew = []
         probListNew = []
         finishList = []
@@ -517,7 +513,7 @@ def test_getConnect(model, variConstNum, paramNums, max_len2, maxCandNum, src, p
             newPred.append(n)
             probListNew.append(outValueAll[t, 2])
             perLayerSymListNew.append(perLayerSymList[orgCandNo])
-            #layerSymOpListNew每次都要更新, 换层的时候根据选择的情况更新sinCosLogFlagListNew, validFlagListNew
+            #LayerSymOpListNew needs to be updated every time, and when changing layers, sinCosLogFlagListNew and validFlagListNew are updated based on the selected situation
             flag, layerSymOp = UpdateLayerSymOpPreNode(layerSymOpList, perLayerSymList, orgCandNo, paramNums, n)
             layerSymOpListNew.append(layerSymOp)
             if 2 == flag:
@@ -566,7 +562,7 @@ def test_BeamSearch_new(modelSym, model, paramNums, max_len1, max_len2, device, 
     model.eval()
     with torch.no_grad():
         #totalTestNum = testData.size(0)
-        #test_times = min(320, totalTestNum)#其实每次只有一个样本，test_times每次都为1
+        #test_times = min(320, totalTestNum)
         max_len = max_len1 + max_len2 + 2
         minTotalError = 9999
         preEqual = ''
@@ -782,14 +778,14 @@ def GetScoreList(listCurrErrorList, listCurrComplexityList, listRealComplexity):
             s1=0
             s2=0
             for k in range(expressNum):
-                #不是EQL则考虑复杂度
+                #Consider complexity if it is not an EQL result
                 #if 4 != i and 4 != j:
                 if 0 != i and 0 != j:
                     if (listCurrErrorList[i][k]<=listCurrErrorList[j][k] or listCurrComplexityList[j][k] > 3 * listRealComplexity[k]) and listCurrComplexityList[i][k] <= 3 * listRealComplexity[k]:
                         s1 = s1+1
                     if (listCurrErrorList[j][k]<=listCurrErrorList[i][k] or listCurrComplexityList[i][k] > 3 * listRealComplexity[k]) and listCurrComplexityList[j][k] <= 3 * listRealComplexity[k]:
                         s2 = s2+1
-                else:#EQL 不考虑复杂度
+                else:#EQL result does not consider complexity
                     if listCurrErrorList[i][k]<=listCurrErrorList[j][k]:
                         s1 = s1+1
                     if listCurrErrorList[j][k]<=listCurrErrorList[i][k]:
@@ -802,7 +798,7 @@ def GetScoreList(listCurrErrorList, listCurrComplexityList, listRealComplexity):
         scorePairList_list.append(scorePairList)
 
     return scoreList, scorePairList_list
-#和随机算法比较，flag恒为0了
+#Comparison with random algorithms,flag=0
 def PlotWholeCurTwo(listALlList_list, listALlComplexityList_list, listRealComplexityList):
     colorList=['darkorange', 'red', 'navy', 'green']
     labelList = ['full model', 'two model', 'gp', 'dsr']
@@ -868,7 +864,6 @@ def PlotWholeCurTwo(listALlList_list, listALlComplexityList_list, listRealComple
 def PlotWholeCur(listALlList_list, listALlComplexityList_list, listRealComplexityList, flag):
     # colorList=['darkorange', 'red', 'blue', 'green', 'magenta'] #navy
     # labelList = ['DSN1', 'DSN2', 'GP', 'DSR', 'EQL']
-    # 图示换个顺序
     #colorList = ['magenta', 'blue', 'green', 'darkorange', 'red']
     #colorList = ['lightsalmon', 'skyblue', 'yellowgreen', 'gold', 'plum']
     colorList = ['plum', 'gold', 'yellowgreen', 'skyblue', 'tomato']
@@ -913,12 +908,13 @@ def PlotWholeCur(listALlList_list, listALlComplexityList_list, listRealComplexit
     plt.xlabel("Index of expression")
     if 0 == flag:
         plt.ylabel("meanError")
-        plt.title("meaError on test set")
+        plt.title("meanError on test set")
     else:
         plt.ylabel("Complexity difference")
         plt.title("Complexity difference on test set")
     # plt.title("titleStr")
     plt.legend()  # loc=locStr
+    plt.show()
 
 def PlotCur(listALlList_list, listALlComplexityList_list, listRealComplexityList, flag):
     colorList=['darkorange', 'red', 'navy', 'green']
@@ -949,7 +945,7 @@ def PlotCur(listALlList_list, listALlComplexityList_list, listRealComplexityList
             plt.title("Complexity difference on test set %s" % (allTestDataNameList[i]))
         #plt.title("titleStr")
         plt.legend()#loc=locStr
-        #plt.show()
+        plt.show()
 
 def PrintPairList(scorePairList_list):
     tmp=scorePairList_list
@@ -982,7 +978,7 @@ def GetALlResult():
 
     listRealComplexityList = [[6, 5, 6, 4, 8, 10, 5, 5, 4, 4, 9], [2, 3, 4, 5, 7, 6], [4, 14, 5, 6, 7, 4, 5, 7, 6], [10, 14, 16, 4, 9, 12, 8], [8, 7, 6, 4, 3, 7, 6, 6, 5, 8, 9, 1],
     [7, 10, 1, 3, 1, 2, 3, 3, 3, 7, 2, 3, 11, 4, 2, 6, 3, 4, 9, 3, 3, 3, 4, 3, 4, 3, 3, 3, 3, 3, 3, 5, 5, 5, 3, 4]]
-#上面这些内容不要改
+    #he above content is about expression complexity
     #####################################################################################################################################
     totalErrorList_quan, listALlErrorList_quan, listALlComplexityList_quan, timeList_quan = readList("results/public_rlt/DSN1Rlt.txt")
     totalErrorList_two, listALlErrorList_two, listALlComplexityList_two, timeList_two = readList("results/public_rlt/DSN2Rlt.txt")
@@ -990,7 +986,6 @@ def GetALlResult():
     totalErrorList_dsr, listALlErrorList_dsr, listALlComplexityList_dsr, timeList_dsr = readList("results/public_rlt/dsrRlt.txt")
     totalErrorList_eql, listALlErrorList_eql, listALlComplexityList_eql, timeList_eql = readList("results/public_rlt/eqlRlt.txt")
 
-    #图示换个顺序
     listALlErrorList_list = [listALlErrorList_eql, listALlGPErrorList_gp, listALlErrorList_dsr, listALlErrorList_quan, listALlErrorList_two]
     listALlComplexityList_list = [listALlComplexityList_eql, listALlGPComplexityList_gp, listALlComplexityList_dsr, listALlComplexityList_quan, listALlComplexityList_two]
     ######################################################################################################################################
@@ -1022,7 +1017,7 @@ def GetSemiRandCompareResult():
 
     listRealComplexityList = [[6, 5, 6, 4, 8, 10, 5, 5, 4, 4, 9], [2, 3, 4, 5, 7, 6], [4, 14, 5, 6, 7, 4, 5, 7, 6], [10, 14, 16, 4, 9, 12, 8], [8, 7, 6, 4, 3, 7, 6, 6, 5, 8, 9, 1],
     [7, 10, 1, 3, 1, 2, 3, 3, 3, 7, 2, 3, 11, 4, 2, 6, 3, 4, 9, 3, 3, 3, 4, 3, 4, 3, 3, 3, 3, 3, 3, 5, 5, 5, 3, 4]]
-    #上面这些内容不要改
+    #The above content is about expression complexity
     ######################################################################################################################################
     totalErrorList_quan, listALlErrorList_quan, listALlComplexityList_quan, timeList_quan = readList("results/public_rlt/SemiRand/randRlt.txt")
     totalErrorList_two, listALlErrorList_two, listALlComplexityList_two, timeList_two = readList("results/public_rlt/SemiRand/DSN2Rlt.txt")
@@ -1030,7 +1025,7 @@ def GetSemiRandCompareResult():
     listALlErrorList_list = [listALlErrorList_quan, listALlErrorList_two]
     listALlComplexityList_list = [listALlComplexityList_quan, listALlComplexityList_two]
     ######################################################################################################################################
-    #和随机算法比较
+    #Comparison with random algorithms
     PlotWholeCurTwo(listALlErrorList_list, listALlComplexityList_list, listRealComplexityList)
 
 def GetSemiRandModelList(modelListIn):
@@ -1056,22 +1051,21 @@ if __name__ == '__main__':
         paramNumList = [2, 2, 2, 2, 1, 1, 1, 1]  # , 1]
         symNum = len(paramNumList)
         paramNums = torch.tensor(paramNumList, dtype=torch.long)
-        variNum = 3
+        variNum = 3 #Maximum number of supported variables
         constNum = 1
         variConstNum = variNum + constNum
         symNetHiddenNum = 6
         maxLabelLen2 = 24 #12, 16, 20
-        maxLabelLen = symNetHiddenNum + maxLabelLen2 + 2 #加2是因为有一个间隔符0和终止符 padToken
-        inputSeqLen = 20 #输入序列长度
+        maxLabelLen = symNetHiddenNum + maxLabelLen2 + 2
+        inputSeqLen = 20 #Input sequence length
 
-        ntoken = 257 #256
-        d_model = 512#默认512   256
-        nlayers = 6 #默认6       2
+        ntoken = 257 #256+1
+        d_model = 512
+        nlayers = 6
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     if 3 == variNum:
-        #3个变量的模型
-        # 大数据充分训练的全模型
+        # full model
         modelSym_name3 = 'model/model_0.19990.pt'
         model_name3 = 'model/model_0.19990.pt'
         modelSym_name4 = 'model/model_0.27516.pt'
@@ -1084,7 +1078,7 @@ if __name__ == '__main__':
         modelList_DSN1 = LoadModelList(modelSym_name3, model_name3, modelSym_name4, model_name4, modelSym_name5, model_name5, modelSym_name6, model_name6)
         #modelList_DSN1 = GetSemiRandModelList(modelList_DSN1)
 
-        # 大数据充分训练的模型
+        # Operator Selection Model
         modelSym_name3 = 'model_symSel/model_0.40559.pt'
         model_name3 = 'model/model_0.19990.pt'
         modelSym_name4 = 'model_symSel/model_0.62877.pt'
